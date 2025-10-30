@@ -8,27 +8,292 @@ format: typst
 ## **Part 0: libraries**
 
 ```{r}
-
+library(tidyverse)
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(ggplot2)
+library(maps)
 ```
 
 ## **Part 1:** **Defining Research Question**
 
-Chosen Question:
+Chosen Question: Do states with large counts of EV registrations have a high total usage of renewable energy sources across 2021, 2022, and 2023?
 
 ## **Part 2: Data Preparation and Cleaning**
 
 ```{r}
+## Load datasets
+avg_energy_price <- read.csv("/Users/nandunair/Documents/stat133/project-4/ev-power-AnandNair9-1/data/av-energy-price-2021-2023.csv")
+ev_reg_state <- read.csv("/Users/nandunair/Documents/stat133/project-4/ev-power-AnandNair9-1/data/ev-registrations-by-state-2023.csv")
+renew_energy_2021 <- read.csv("/Users/nandunair/Documents/stat133/project-4/ev-power-AnandNair9-1/data/renew-use-2021.csv")
+renew_energy_2022 <- read.csv("/Users/nandunair/Documents/stat133/project-4/ev-power-AnandNair9-1/data/renew-use-2022.csv")
+renew_energy_2023 <- read.csv("/Users/nandunair/Documents/stat133/project-4/ev-power-AnandNair9-1/data/renew-use-2023.csv") 
+total_energy_2021 <- read.csv("/Users/nandunair/Documents/stat133/project-4/ev-power-AnandNair9-1/data/total-use-2021.csv")
+total_energy_2022 <- read.csv("/Users/nandunair/Documents/stat133/project-4/ev-power-AnandNair9-1/data/total-use-2022.csv")
+total_energy_2023 <- read.csv("/Users/nandunair/Documents/stat133/project-4/ev-power-AnandNair9-1/data/total-use-2023.csv")
 
+### Clean Datasets
+## Convert Column Names to lowercase
+# Average Energy Price per State Dataset - avg_energy_price
+clean_energy_price_names <- str_to_lower(names(avg_energy_price))
+names(avg_energy_price) <- clean_energy_price_names
+
+# EV Registrations per State Dataset - ev_reg_state
+clean_ev_names <- str_to_lower(names(ev_reg_state))
+names(ev_reg_state) <- clean_ev_names
+names(ev_reg_state) <- c("state", "ev_count")
+# Use string manipulation to replace all unecessary symbols and text from ev_reg_state_clean
+ev_reg_state$ev_count <- str_replace_all(
+    ev_reg_state$ev_count, 
+    pattern = " |#|~|EVs|-", 
+        replacement = "")
+ev_reg_state_clean <- ev_reg_state |>
+    slice(-c(1,2))
+
+# Renewable Energy Usage by each State in 2021 renew_energy_2021
+clean_renew_2021_names <- str_to_lower(names(renew_energy_2021))
+names(renew_energy_2021) <- clean_renew_2021_names
+
+# Renewable Energy Usage by each State in 2022 renew_energy_2022
+clean_renew_2022_names <- str_to_lower(names(renew_energy_2022))
+names(renew_energy_2022) <- clean_renew_2022_names
+
+# Renewable Energy Usage by each State in 2023 renew_energy_2023
+clean_renew_2023_names <- str_to_lower(names(renew_energy_2023))
+names(renew_energy_2023) <- clean_renew_2023_names
+
+# Total Renewable Energy Usage by each State in 2021
+clean_total_renew_2021_names <- str_to_lower(names(total_energy_2021))
+names(total_energy_2021) <- clean_total_renew_2021_names
+total_energy_2021_clean <- total_energy_2021 |>
+    mutate(
+        energy_source = recode(energy_source,
+            "Coal" = "coal",
+            "Natural Gas†" = "natural_gas",
+            "Petroleum (BTU)" = "petroleum (btu)",
+            "nuclear" = "nuclear_energy",
+            .default = energy_source
+        )
+    )
+
+# Total Renewable Energy Usage by each State in 2022
+clean_total_renew_2022_names <- str_to_lower(names(total_energy_2022))
+names(total_energy_2022) <- clean_total_renew_2022_names
+total_energy_2022_clean <- total_energy_2022 |>
+    mutate(
+        energy_source = recode(energy_source,
+            "coal Consumption" = "coal",
+            "Natural-Gas" = "natural_gas",
+            "Nuclear Energy†" = "nuclear_energy",
+            "total_renewables" = "total_renewable_energy",
+            .default = energy_source
+        )
+    )
+
+
+# Total Renewable Energy Usage by each State in 2023
+clean_total_renew_2023_names <- str_to_lower(names(total_energy_2023))
+names(total_energy_2023) <- clean_total_renew_2023_names
+total_energy_2023_clean <- total_energy_2023 |>
+    mutate(
+        energy_source = recode(energy_source,
+            "coal_usage" = "coal",
+            "NaturalGas" = "natural_gas",
+            "nuclear-energy †" = "nuclear_energy",
+            "total renewable-energy" = "total_renewable_energy",
+            "petroleum (BTU)" = "petroleum (btu)"
+        )
+    )
 ```
 
 ## **Part 3: Joining / Pivoting Datasets for Analysis**
 
 ```{r}
+# Research question requires: 
+# 1. EV Registration data
+# ev_reg_state_clean
+# 2. Total Use of Renewable Energy 2021, 2022, 2023
+# total_energy_2021_clean
+# total_energy_2022_clean
+# total_energy_2023_clean
 
+# Pivot Total Energy Datasets Longer
+total_energy_2021_long <- total_energy_2021_clean |>
+    pivot_longer(
+        cols = c(ak:us),
+        names_to = "state",
+        values_to = "total_energy_usage_2021"
+    )
+
+total_energy_2022_long <- total_energy_2022_clean |>
+    pivot_longer(
+        cols = c(ak:us),
+        names_to = "state",
+        values_to = "total_energy_usage_2022"
+    )
+
+total_energy_2023_long <- total_energy_2023_clean |>
+    pivot_longer(
+        cols = c(ak:us),
+        names_to = "state",
+        values_to = "total_energy_usage_2023"
+    )
+
+total_energy_2021_22 <- left_join(x = total_energy_2021_long, y = total_energy_2022_long)
+total_energy_2021_22_23 <- left_join(x = total_energy_2021_22, y = total_energy_2023_long)
+View(total_energy_2021_22_23)
+
+## EV Registration Counts Data
+# Convert State names to initials
+us_states <- data.frame(
+    state = state.name,
+    state_initials = tolower(state.abb)
+)
+us_states <- rbind(us_states, data.frame(state = "District of Columbia", state_initials = "dc"))
+ev_reg_state_clean <- ev_reg_state_clean |>
+    mutate(State = str_to_upper(state)) |>
+    left_join(us_states, ev_reg_state_clean, by = c("state")) |>
+    select(-c(state, State))
+
+ev_reg_state_clean <- ev_reg_state_clean |>
+    mutate(ev_count = parse_number(ev_count)) |>
+    rename(state = state_initials)
+
+state_total_renewable_energy <- total_energy_2021_22_23 |>
+    group_by(state) |>
+    summarize(
+        total_renewable_2021 = sum(total_energy_usage_2021, na.rm = TRUE),
+        total_renewable_2022 = sum(total_energy_usage_2022, na.rm = TRUE),
+        total_renewable_2023 = sum(total_energy_usage_2023, na.rm = TRUE)
+    )
+
+ev_reg_total_renew_energy <- left_join(x = state_total_renewable_energy, y = ev_reg_state_clean, by = c("state"))
+
+ev_reg_total_renew_energy <- ev_reg_total_renew_energy |>
+    group_by(state) |>
+    mutate(renew_energy_sum = sum(total_renewable_2021 + total_renewable_2022 + total_renewable_2023, na.rm = TRUE))
 ```
 
 ## **Part 4: Mapping Visualization**
 
 ```{r}
+# US MAP of Total Renewable Energy Usage
+us_map_data <- map_data("state")
 
+us_state_template <- data.frame(
+    region = tolower(state.name),
+    state_abb = tolower(state.abb)) |>
+        bind_rows(data.frame(region = "district of columbia", state_abb = "dc"))
+
+us_map_state_template <- left_join(x = us_map_data, y = us_state_template, by = "region")
+
+us_map_ev_renew_energy <- left_join(x = us_map_state_template, y = ev_reg_total_renew_energy, by = c("state_abb" = "state")) |>
+    filter(!is.na(renew_energy_sum))
+
+us_map_total_renew <- us_map_ev_renew_energy |>
+    ggplot(aes(x = long, y = lat, group = group, fill = renew_energy_sum)) +
+    geom_polygon(color = "white") +
+    labs(title = "Distribution of Total Renewable Energy Usage Across U.S.",
+    x = "Longitude",
+    y = "Latitude",
+    fill = "Renewable Energy Sum")
+us_map_total_renew
+
+# US Map of EV Registration
+us_map_ev_count <- us_map_ev_renew_energy |>
+    ggplot(aes(x = long, y = lat, group = group, fill = ev_count)) +
+    geom_polygon(color = "white") +
+    labs(title = "Distribution of EV Registration Counts Across U.S.",
+    x = "Longitude",
+    y = "Latitude",
+    fill = "EV Count")
+us_map_ev_count
+
+# US Map of EV Registrations and Total Renewable Energy Usage
+ev_renew_ratio_data <- ev_reg_total_renew_energy |>
+    mutate(ev_renew_ratio = ev_count / renew_energy_sum) 
+
+us_map_ev_renew_energy <- left_join(x = us_map_state_template, y = ev_renew_ratio_data, by = c("state_abb" = "state")) |>
+    filter(!is.na(ev_renew_ratio))
+
+ev_total_renew_ratio_plot <- us_map_ev_renew_energy |>
+    ggplot(aes(x = long, y = lat, group = group, fill = ev_renew_ratio)) +
+    geom_polygon(color = "white") +
+    labs(title = "Distribution of Ratio of EV Registrations per Total Renewable Energy Across U.S.",
+    x = "Longitude",
+    y = "Latitude",
+    fill = "EV Renewable Energy Ratio")
+ev_total_renew_ratio_plot
 ```
+
+# Part 5: Final Deliverable
+
+## 1. Title: EV Power - Lab 4 Project Report
+
+## 2. Sub-Question
+
+**Do states with large counts of EV registrations have a higher total usage of renewable energy sources across 2021, 2022, and 2023?**
+
+## 3.  Data and Methods: Show key tables or data summaries (`head()` of joined datasets)
+
+```{r}
+head(total_energy_2021_22_23)
+head(ev_reg_total_renew_energy)
+```
+
+## 4. Visualizations
+
+```{r}
+# US MAP of Total Renewable Energy Usage
+us_map_data <- map_data("state")
+
+us_state_template <- data.frame(
+    region = tolower(state.name),
+    state_abb = tolower(state.abb)) |>
+        bind_rows(data.frame(region = "district of columbia", state_abb = "dc"))
+
+us_map_state_template <- left_join(x = us_map_data, y = us_state_template, by = "region")
+
+us_map_ev_renew_energy <- left_join(x = us_map_state_template, y = ev_reg_total_renew_energy, by = c("state_abb" = "state")) |>
+    filter(!is.na(renew_energy_sum))
+
+us_map_total_renew <- us_map_ev_renew_energy |>
+    ggplot(aes(x = long, y = lat, group = group, fill = renew_energy_sum)) +
+    geom_polygon(color = "white") +
+    labs(title = "Distribution of Total Renewable Energy Usage Across U.S.",
+    x = "Longitude",
+    y = "Latitude",
+    fill = "Renewable Energy Sum")
+us_map_total_renew
+
+# US Map of EV Registration
+us_map_ev_count <- us_map_ev_renew_energy |>
+    ggplot(aes(x = long, y = lat, group = group, fill = ev_count)) +
+    geom_polygon(color = "white") +
+    labs(title = "Distribution of EV Registration Counts Across U.S.",
+    x = "Longitude",
+    y = "Latitude",
+    fill = "EV Count")
+us_map_ev_count
+
+# US Map of EV Registrations and Total Renewable Energy Usage
+ev_renew_ratio_data <- ev_reg_total_renew_energy |>
+    mutate(ev_renew_ratio = ev_count / renew_energy_sum) 
+
+us_map_ev_renew_energy <- left_join(x = us_map_state_template, y = ev_renew_ratio_data, by = c("state_abb" = "state")) |>
+    filter(!is.na(ev_renew_ratio))
+
+ev_total_renew_ratio_plot <- us_map_ev_renew_energy |>
+    ggplot(aes(x = long, y = lat, group = group, fill = ev_renew_ratio)) +
+    geom_polygon(color = "white") +
+    labs(title = "Distribution of Ratio of EV Registrations per Total Renewable Energy Across U.S.",
+    x = "Longitude",
+    y = "Latitude",
+    fill = "EV Renewable Energy Ratio")
+ev_total_renew_ratio_plot
+```
+
+## 5. Interpret your findings.
+
+One of the patterns that I noticed from my state map plots of the U.S. for the distribution of the total renewable energy usage and the ev registration counts, is that the two primary states that were prominently displayed were California and Texas. These two states had higher counts for the number of electric vehicle registered in their state and had a greater total renewable energy usage than the rest of the states in the United States. This pattern has helped me answer my personal sub-question which is that, yes, states that have a higher EV registration count do have a higher total renewable energy usage as seen by California and Texas. In terms of the main question, the maps are not helpful in determining whether electricity comes from clean sources but an analysis of the total renewable energy data collected in 2021, 2022, and 2023 from the various renewable energy sources would be helpful.
